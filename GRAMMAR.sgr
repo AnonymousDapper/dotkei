@@ -1,0 +1,347 @@
+// ------------------------- //
+// Dotkei Grammar Spec       //
+// ------------------------- //
+
+// This is human-readable file,
+// not intended for parser generation
+
+// Notes:
+// `Item`s use indentation detection for termination
+
+// Newlines are soft terminators for expressions,
+// suppressed in continuation contexts
+
+
+// Program Root
+// ------------
+Module 				= Item*
+
+
+// Top-level constructs
+// ============================================================
+
+Item				= Visibility?
+					( UseItem
+					| FnItem
+					| TypeItem
+					| DataItem
+					| EnumItem
+					| ConstItem
+					| IfaceItem
+					| ImplItem
+					)
+
+
+// Module Imports
+// --------------
+UseItem				= `use` UseTree `;`
+
+UseTree				= SimplePath
+					( `as` ( IDENT | `_` )
+					| `with` `*`
+					| `with` UseTree
+					| `with` `[` UseTree ( `,` UseTree )* `]`
+					)
+
+// Function Declaration
+// --------------------
+FnItem				= `fn` FnName FnParameters?
+					FnReturn? WhereClause?
+					( `is` Statements )? `;`
+
+FnName				= IDENT
+					| `(` OPERATOR `)`
+
+FnParameters		= SelfParam
+					| ( SelfParam `,` )? FnParam ( `,` FnParam )*
+
+SelfParam			= ShorthandSelf | TypedSelf
+
+ShorthandSelf		= `&`? `mut`? `self`
+
+TypedSelf			= `mut`? `self` `:` Type
+
+FnParam 			= PatternItem `:` Type
+
+FnReturn			= `->` Type
+
+// Type Declaration
+// ----------------
+TypeItem			= `type` IDENT GenericParams?
+					WhereClause? ( `is` Type )?
+					`;`
+
+
+// Data Declaration (structs)
+// --------------------------
+DataItem 			= FieldStruct
+					| TupleStruct
+
+FieldStruct			= `data` IDENT GenericParams?
+					WhereClause? ( `is` StructFields )?
+					`;`
+
+TupleStruct			= `data` IDENT GenericParams?
+					WhereClause? `is`
+					`(` TupleFields `)` `;`
+
+
+// Enum Declaration
+// ----------------
+EnumItem			= `enum` IDENT GenericParams?
+					WhereClause? ( `is` EnumVariants )?
+					`;`
+
+EnumVariants		= EnumVariant ( `,` EnumVariant )* `,`?
+
+EnumVariant 		= IDENT ( EnumStruct | EnumType )?
+					EnumDiscriminant?
+
+EnumType			= Type
+
+EnumStruct			= `{` StructFields `}`
+
+EnumDiscriminant	= `=` Expression
+
+
+// Constant Declaration
+// ---------------------
+ConstItem			= `const` IDENT `:` Type
+					( `is` Expression )? `;`
+
+
+// Interface Declaration
+// ---------------------
+IfaceItem			= `iface` IDENT
+					GenericParams? WhereClause?
+					( `is` AssociatedItem* )? `;`
+
+AssociatedItem		= Visibility? (TypeItem | ConstItem | FnItem)
+
+
+// Implementation
+// --------------
+ImplItem 			= InherentImpl | IfaceImpl
+
+InherentImpl		= `impl` TypePath GenericParams?
+					WhereClause? `is`
+					AssociatedItem* `;`
+
+IfaceImpl			= `impl` TypePath GenericParams?
+					`for` Type WhereClause?
+					`is` AssociatedItem* `;`
+
+
+// TODO:
+// Expression
+// ImplicitBlock
+// PatternItem
+// Type
+// TypePath
+
+
+// Reusables
+// ============================================================
+
+// Generics
+// --------
+GenericParams		= GenericParam+
+
+GenericParam 		= TypeParam
+//					| ConstParam
+
+TypeParam 			= IDENT //( `=` Type )?
+
+//ConstParam 			= `const` IDENT `:` Type ( `=` ( BlockExpr | IDENT | LiteralExpr ))?
+
+
+// Type Constraints
+// ----------------
+WhereClause			= `where` WhereClauseItem ( `,` WhereClauseItem )*
+
+WhereClauseItem		= TypeBoundItem
+
+TypeBoundItem		= Type `:` TypeParamBounds
+
+TypeParamBounds		= TypeParamBound ( `+` TypeParamBound )*
+
+TypeParamBound 		= TraitBound
+
+TraitBound			= TypePath
+					| `(` TypePath `)`
+
+// Namespacing
+// -----------
+SimplePath			= SimplePathSegment ( `::` SimplePathSegment )*
+
+SimplePathSegment	= IDENT | `super` | `self`
+
+
+TypePath			= TypePathSegment ( `:` TypePathSegment )*
+
+TypePathSegment		= PathIdentSegment
+
+
+PathIdentSegment	= IDENT | `super` | `self` | `Self`
+
+
+// Constructor Helpers
+// -------------------
+StructFields		= StructField ( `,` StructField )* `,`?
+
+StructField 		= Visibility? IDENT `:` Type
+
+TupleFields			= TupleField ( `,` TupleField )* `,`?
+
+TupleField 			= Visibility? Type
+
+
+// Export Visibility
+// -----------------
+Visibility			= `pub`
+
+
+// Statements and Expressions
+// ============================================================
+
+// BlockExpression = `do` ... `end`
+
+
+
+// Type Expressions
+// ----------------
+Type 				= TypeAtom TypeAtom // Application: T E ...
+					| TypeAtom
+
+TypeAtom			= ParenthesizedType
+					| FunctionType
+					| ReferenceType
+					| TupleType
+					| TypePath
+
+
+ParenthesizedType   = `(` Type `)`
+
+
+FunctionType		= `fn` FnTypeParams FnTypeReturn?
+
+FnTypeParams		= FnTypeParam ( `,` FnTypeParam )*
+					| `(` FnTypeParam ( `,` FnTypeParam )* `)`
+
+FnTypeParam 		= ( ( IDENT | `_` ) `:` )? Type
+
+FnTypeReturn		= `->` Type
+
+
+ReferenceType		= `&` `mut`? TypeAtom
+
+
+TupleType			= `(` `)`
+					| `(` ( Type `,` )+ Type? `)`
+
+
+// Tokens
+// ============================================================
+OPERATOR 			= ASCII_OP | UNICODE_OP
+					_except for named punctuation tokens_
+
+IDENT 				= NAME _except for reserved and strict keywords_
+
+
+
+
+// Internal Productions
+// ============================================================
+NAME 				= ( XID_START | `_` ) XID_CONTINUE*
+
+XID_START			= <`XID_Start` per unicode standard>
+
+XID_CONTINUE		= <`XID_Continue` per unicode standard>
+
+
+STRICT_KEYWORDS		= `as`
+					| `break`
+					| `by`
+					| `const`
+					| `continue`
+					| `data`
+					| `do`
+					| `else`
+					| `enum`
+					//| `end`
+					| `fn`
+					| `for`
+					| `if`
+					| `impl`
+					| `in`
+					| `infix`
+					| `infixl`
+					| `infixr`
+					| `iface`
+					| `is`
+					| `let`
+					| `loop`
+					| `match`
+					| `mut`
+					| `op`
+					| `postfix`
+					| `prefix`
+					| `pub`
+					| `return`
+					| `Self`
+					| `self`
+					| `super`
+					| `type`
+					| `until`
+					| `use`
+					| `where`
+					| `while`
+					| `when`
+					| `with`
+
+
+ASCII_OP			= ( `~` | `!` | `@` | `$` | `%` | `^` | `&` | `*`
+					| `-` | `+` | `=` | `|` | `<` | `>` | `.` | `/`
+					| `?` | `\` )+
+
+
+UNICODE_OP		 	= U+2200 _∀  for all_
+					| U+2203 _∃ there exists_
+					| U+2204 _∄ there does not exist_
+					| U+2205 _∅ empty set_
+					| U+2208 _∈ element of_
+					| U+2209 _∉ not an element of_
+					| U+220B _∋ contains as member_
+					| U+220C _∌ does not contain as member_
+					| U+221A _√ square root_
+					| U+2295 _⊕ circled plus_
+					| U+2296 _⊖ circled minus_
+					| U+2297 _⊗ circled times_
+					| U+2227 _∧ logical and_
+					| U+2228 _∨ logical or_
+					| U+2229 _∩ intersection_
+					| U+222A _∪ union_
+					| U+222B _∫ integral_
+					| U+222C _∬ double integral_
+					| U+222D _∭ triple integral_
+					| U+222E _∮ contour integral_
+					| U+2260 _≠ not equal to_
+					| U+2261 _≡ identical to_
+					| U+2262 _≢ not identical to_
+					| U+2264 _≤ less-than or equal to_
+					| U+2265 _≥ greater-than or equal to_
+					| U+226E _≮ not less-than_
+					| U+226F _≯ not greater-than_
+					| U+2282 _⊂ subset of_
+					| U+2283 _⊃ superset of_
+					| U+2284 _⊄ not a subset of_
+					| U+2285 _⊅ not a superset of_
+					| U+2286 _⊆ subset of or equal to_
+					| U+2287 _⊇ superset of or equal to_
+					| U+2288 _⊈ neither a subset of nor equal to_
+					| U+2289 _⊉ neither a superset of nor equal to_
+					| U+00D7 _× multiplication sign_
+					| U+00F7 _÷ division sign_
+					| U+2202 _∂ partial differential_
+					| U+2206 _∆ increment_
+					| U+2207 _∇ nabla_

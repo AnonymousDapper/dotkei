@@ -1,0 +1,17 @@
+[package]
+name = "dotkei"
+version = "0.1.0"
+edition = "2024"
+authors = ["AnonymousDapper"]
+license = "MIT"
+description = "Project dotkei toolchain interface"
+
+[dependencies]
+ariadne = "0.6.0"
+clap = { version = "4.6.1", features = ["derive"] }
+codespan = "0.13.1"
+colored = "3.1.1"
+log = { version = "0.4.29", features = ["kv"] }
+string-interner = "0.19.0"
+unicode-ident = "1.0.24"
+unicode-normalization = "0.1.25"
