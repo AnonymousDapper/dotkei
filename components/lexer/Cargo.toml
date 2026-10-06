@@ -1,0 +1,9 @@
+[package]
+name = "lexer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+memchr = "2.8.2"
+unicode-ident = "1.0.24"
+unicode-properties = "0.1.4"

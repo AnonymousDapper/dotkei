@@ -2,7 +2,7 @@
 
 // Copyright (c) 2026 AnonymousDapper
 
-#![allow(dead_code)]
+//#![allow(dead_code)]
 
 use std::{
     ffi::OsString,
@@ -10,15 +10,10 @@ use std::{
 };
 
 use clap::{Args, Parser, Subcommand, ValueHint};
-
-mod cst;
-mod frontend;
-mod logging;
-mod storage;
+use unicode_normalization::UnicodeNormalization;
 
 #[allow(unused_imports)]
-use logging::{debug, error, info, trace, warn};
-
+use dotkei::logging::{LevelFilter, debug, error, info, trace, warn};
 
 #[allow(dead_code)]
 const BIN_NAME: &str = env!("CARGO_BIN_NAME");
@@ -33,9 +28,9 @@ const PKG_DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
     propagate_version = true
 )]
 struct Cli {
-    #[arg(long, value_parser = parse_valid_log_level, default_value_t = log::LevelFilter::Info)]
+    #[arg(long, value_parser = parse_valid_log_level, default_value_t = LevelFilter::Info)]
     /// Set output logging level
-    log_level: log::LevelFilter,
+    log_level: LevelFilter,
 
     #[arg(long)]
     /// Silence output messages except for critical errors
@@ -103,15 +98,15 @@ struct BuildArgs {
 /// "info" -> LevelFilter::Info
 /// "debug" -> LevelFilter::Debug
 /// "trace" -> LevelFilter::Trace
-fn parse_valid_log_level(level_name: &str) -> Result<log::LevelFilter, String> {
+fn parse_valid_log_level(level_name: &str) -> Result<LevelFilter, String> {
     use std::str::FromStr;
 
-    if let Ok(level) = log::LevelFilter::from_str(&level_name.to_lowercase()) {
+    if let Ok(level) = LevelFilter::from_str(&level_name.to_lowercase()) {
         Ok(level)
     } else {
         Err(format!(
             "Available levels are: {}",
-            log::LevelFilter::iter()
+            LevelFilter::iter()
                 .map(|i| i.to_string())
                 .collect::<Vec<String>>()
                 .join(", ")
@@ -162,28 +157,70 @@ fn repl_command(debug_print: bool, code: Option<OsString>) -> CommandResult {
     todo!();
 }
 
+pub fn read_from_path<P: AsRef<Path>>(path: P) -> Result<String, String> {
+    match std::fs::read_to_string(path) {
+        Ok(s) => {
+            let nfc_normed: String = s.nfc().collect();
+
+            let mut index = 0;
+
+            // Unicode BOM stripping
+            if nfc_normed[0..3] == *"\u{ffef}" {
+                index = 3;
+            }
+
+            // Shebang stripping
+            while nfc_normed[index..index + 2] == *"#!" {
+                if let Some(nl) = s.find('\n') {
+                    index = nl;
+                } else {
+                    break;
+                }
+            }
+
+            // CRLF normalization
+            Ok(nfc_normed[index..].replace("\r\n", "\n"))
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
 #[allow(unused_variables)]
 fn build_command(path: PathBuf, debug_print: bool, release_mode: bool) -> CommandResult {
-    if let Ok(t) = frontend::source::read_from_path(&path) {
-        info!("{}:\n{}", path.display(), t);
-    }
+    if let Ok(s) = read_from_path(&path) {
+        debug!(target:"print_source", "\n{}", s);
+        let mut cursor = 0;
 
-    match frontend::lex_from_path(path) {
-        Ok(ts) => {
-            // for (token, src, triv) in ts {
-            //     if token.kind == TokenKind::Newline {
-            //         continue;
-            //     } else {
-            //         info!(target:"build", kind:? = token.kind, tok_len = token.span.end-token.span.start, trivia:? = triv; "{}", src);
-            //     }
-            // }
-            CommandResult::Success
+        for token in dotkei::lexer::basic::tokenize(&s) {
+            info!(target:"token", kind:? = token.kind; "{}", &s[cursor..cursor+token.len as usize]);
+
+            cursor += token.len as usize;
         }
-        Err(e) => {
-            error!(target:"build", "Build error: {}", e);
-            CommandResult::Failure
-        }
+
+        return CommandResult::Success;
     }
+    // if let Ok(t) = frontend::source::read_from_path(&path) {
+    //     info!("{}:\n{}", path.display(), t);
+    // }
+
+    // match frontend::lex_from_path(path) {
+    //     Ok(ts) => {
+    //         // for (token, src, triv) in ts {
+    //         //     if token.kind == TokenKind::Newline {
+    //         //         continue;
+    //         //     } else {
+    //         //         info!(target:"build", kind:? = token.kind, tok_len = token.span.end-token.span.start, trivia:? = triv; "{}", src);
+    //         //     }
+    //         // }
+    //         CommandResult::Success
+    //     }
+    //     Err(e) => {
+    //         error!(target:"build", "Build error: {}", e);
+    //         CommandResult::Failure
+    //     }
+    // }
+
+    CommandResult::Failure
 }
 
 #[allow(unused_variables)]
@@ -199,12 +236,8 @@ fn run_command(
 fn main() {
     let args = Cli::parse();
 
-    if let Err(e) = logging::init(args.log_level) {
+    if let Err(e) = dotkei::logging::init(args.log_level, args.nocolor) {
         eprintln!("Error configuring logging: {}", e)
-    }
-
-    if args.nocolor {
-        colored::control::set_override(false);
     }
 
     let command_result = match args.command {

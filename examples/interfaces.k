@@ -10,7 +10,7 @@ pub iface Iterator is
 
 pub iface IntoIterator is
 	type Item;
-	type IntoIter: Iterator @Item=Self'Item;
+	type IntoIter: Iterator[Item=Self'Item];
 
 	fn into_iter self -> Self'IntoIter;
 

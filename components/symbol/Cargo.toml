@@ -1,0 +1,10 @@
+[package]
+name = "symbol"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+storage = { path = "../storage" }
+macros = { path = "../macros" }
+structures = { path = "../structures" }
+itoa = "1.0.18"

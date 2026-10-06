@@ -7,9 +7,9 @@ use std::fmt::Write as _;
 
 use colored::{Color, Colorize};
 
-pub use log::{debug, error, info, trace, warn};
+pub use log::{Level, LevelFilter, debug, error, info, trace, warn};
 
-use log::{Level, LevelFilter, Record};
+use log::Record;
 
 use log::kv::{self, Key, Value, VisitSource};
 
@@ -202,6 +202,10 @@ impl log::Log for ConsoleLogger {
 
 static LOGGER: ConsoleLogger = ConsoleLogger;
 
-pub fn init(max_level: LevelFilter) -> Result<(), log::SetLoggerError> {
+pub fn init(max_level: LevelFilter, use_no_color: bool) -> Result<(), log::SetLoggerError> {
+    if use_no_color {
+        colored::control::set_override(false);
+    }
+
     log::set_logger(&LOGGER).map(|()| log::set_max_level(max_level))
 }

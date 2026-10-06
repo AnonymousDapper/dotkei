@@ -1,13 +1,13 @@
 -/ Use Item ---------------------------------------------------
 
 -/ simple use
-use std;
+use std
 
 -/ rename use
-use std as stdlib;
+use std as stdlib
 
 -/ wildcard use
-use std with *;
+use std with *
 
 -/ nested use tree
 use std with [
@@ -16,10 +16,10 @@ use std with [
 	fmt with *,
 	mem with Drop,
 	array
-];
+]
 
 -/ re-export nested path
-pub use foo::bar::baz;
+pub use foo::bar::baz
 
 
 -/ Fn Item ----------------------------------------------------
@@ -33,12 +33,10 @@ fn method &mut self;
 -/ typed parameter and return with body
 fn id x: T -> T is
 	x
-;
 
 -/ constrained generic
 fn format v: T -> String where T: Format is
 	...
-;
 
 -/ destructured param style
 fn point_x Point{x, y}: Point -> Int;
@@ -50,13 +48,13 @@ fn point_x Point{x, y}: Point -> Int;
 type Foo;
 
 -/ basic alias
-type ArrayIndex = u32;
+type ArrayIndex = u32
 
 -/ generic newtype
-type IOResult T is Result T IOError;
+type IOResult T is Result T IOError
 
 -/ constrained generic
-type Map K V where K: Hash is ... ;
+type Map K V where K: Hash is ...
 
 
 -/ Data (struct) Item -----------------------------------------
@@ -65,19 +63,16 @@ type Map K V where K: Hash is ... ;
 data Empty;
 
 -/ tuple struct (.0 is private, .1 is public)
-data Pair is (Int, pub Int);
+data Pair is (Int, pub Int)
 
 -/ classic style
 data Foo is
 	bar: Int
-;
 
 -/ generic
 data Id T is
 	id: u32,
 	__marker: Phantom T
-;
-
 
 -/ Enum Item --------------------------------------------------
 
@@ -85,20 +80,18 @@ data Id T is
 enum Empty;
 
 -/ unit variants
-enum Alphabet is A, B, C;
+enum Alphabet is A, B, C
 
 -/ explicit discriminator
 enum OpCode is
 	Return = 0x01,
 	Load = 0x02,
 	Jump = 0x04
-;
 
 -/ generics
 enum Result T E is
 	Ok T,
 	Err E
-;
 
 -/ complex types
 enum Shape P
@@ -107,14 +100,13 @@ is
 	Line (P, P),
 	Rectangle {origin: P, bounds: P},
 	Circle {origin: P, radius: Int}
-;
 
 -/ Const Item -------------------------------------------------
 
 -/ declaration only
 const KMAIN: &fn;
 
-const label: str is "foo";
+const label: str is "foo"
 
 
 -/ Interface Item ---------------------------------------------
@@ -130,12 +122,11 @@ iface Foo;
 -/ basic generics
 iface From T is
 	fn from item: T -> Self;
-;
 
 -/ constrained
 iface Hash V where V: Ord is
 	...
-;
+
 
 
 -/ Implementation Item ----------------------------------------
@@ -145,13 +136,13 @@ impl Foo for Bar;
 
 -/ generic interface impl
 impl From Foo for Bar is
-	fn from item: Foo -> Foo;
-;
+	fn from item: Foo -> Foo is
+		...
 
 -/ inherent impl (combining data+behavior)
 impl Foo is
-	pub fn new -> Self;
-;
+	pub fn new -> Self is
+		...
 
 -/ Namespacing / Access ---------------------------------------
 
@@ -165,12 +156,12 @@ Enum::Variant
 data.field
 
 -/ method calls
-object'method ...
+object.method ...
 
 -/ above is equivalent to
 ObjectType::method object ...
 
--/ Expressions -------------------------------------------
+-/ Expressions ------------------------------------------------
 
 -/ expr is an expression
 -/ expr; is a statement
@@ -201,3 +192,50 @@ if condition then
 		statements
 	end
 end
+
+-/ high-level iterator protocol enables:
+for item in container do
+	...
+end
+
+-/ Misc -------------------------------------------------------
+
+-/ mutable assignment (assume let mut x = ...)
+x <- val;
+
+-/ record construction
+Point { x: 5, y: 10 }
+
+-/ closure
+|v: T| expr
+
+-/ or
+|v: T, x: U| do
+	...
+end
+
+
+
+-/ Type Expressions -------------------------------------------
+
+-/ inference
+let x = foo;
+
+-/ ascription
+let x: Vec Int = ...;
+
+-/ explicit specialization
+let x = [Vec Int]::new;
+
+-/ specifying associated items
+let x: [Iterator where Item = u8] = ...;
+
+-/ HKTs
+iface Applicative F is
+	fn pure A -> F A;
+	fn apply f: fn A -> B, item: F A -> F B;
+;
+
+-/ compile-time reflection
+T'size
+[Vec T]'align
